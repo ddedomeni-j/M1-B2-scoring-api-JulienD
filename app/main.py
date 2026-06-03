@@ -38,8 +38,8 @@ logger.add(
 # --- Lifespan ---------------------------------------------------------------
 
 MODELS_DIR = Path(__file__).parent.parent / "models"
-MODEL_PATH = MODELS_DIR / "pyrenex_risk_v2.joblib"
-META_PATH = MODELS_DIR / "pyrenex_risk_v2.json"
+MODEL_PATH = MODELS_DIR / "pyrenex_risk_v2_Tuned6.joblib"
+META_PATH = MODELS_DIR / "pyrenex_risk_v2_Tuned6.json"
 
 
 @asynccontextmanager
@@ -47,6 +47,7 @@ async def lifespan(app: FastAPI):
     """Load model + metadata at startup, release at shutdown."""
     if not MODEL_PATH.exists():
         raise RuntimeError(f"Model file not found at {MODEL_PATH}")
+
     if not META_PATH.exists():
         raise RuntimeError(f"Metadata file not found at {META_PATH}")
 
@@ -79,6 +80,21 @@ async def health() -> HealthResponse:
     """Liveness check."""
     if not hasattr(app.state, "model") or app.state.model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
+    
+    """ Appel du modèle pour vérifier que le modèle fonctionne """
+    X_test = pd.DataFrame([{"loan_amnt": 7600, "term": "36 months", "int_rate": 11.39, "installment": 250.22,
+                            "grade": "B", "emp_length": "3 years", "home_ownership": "MORTGAGE", "annual_inc": 72500, "verification_status": "Verified",
+                            "purpose": "debt_consolidation", "dti": 13.12, "delinq_2yrs": 1, "fico_range_low": 725, "revol_util": 48.0}])
+
+    y_test = 0
+    y_proba_test = 0.12763858
+
+    y_pred = app.state.model.predict(X_test)
+    y_proba = app.state.model.predict_proba(X_test)[:, 1]
+    print(f"y_pred: {y_pred}, y_proba: {y_proba}")
+    if y_pred[0] != y_test or abs(y_proba[0]-y_proba_test)>1e-5:
+        raise HTTPException(status_code=503, detail="Model prediction failed")
+
     return HealthResponse(status="ok")
 
 
