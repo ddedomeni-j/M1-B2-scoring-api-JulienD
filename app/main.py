@@ -4,6 +4,8 @@ TODO — Complete the routes /info and /predict.
 """
 from __future__ import annotations
 
+from app import API_VERSION
+
 import json
 import sys
 from contextlib import asynccontextmanager
@@ -15,7 +17,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from loguru import logger
 
 from app.middleware import LoggingMiddleware
-from app.schemas import HealthResponse, LoanApplication, Prediction
+from app.schemas import HealthResponse, LoanApplication, Prediction, InfoResponse
 
 # --- Loguru configuration ---------------------------------------------------
 
@@ -81,14 +83,12 @@ async def health() -> HealthResponse:
     if not hasattr(app.state, "model") or app.state.model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
-    """ Appel du modèle pour vérifier que le modèle fonctionne """
+    """ Call Model and check prediction on a test sample to ensure it's working correctly. """
     X_test = pd.DataFrame([{"loan_amnt": 7600, "term": "36 months", "int_rate": 11.39, "installment": 250.22,
                             "grade": "B", "emp_length": "3 years", "home_ownership": "MORTGAGE", "annual_inc": 72500, "verification_status": "Verified",
                             "purpose": "debt_consolidation", "dti": 13.12, "delinq_2yrs": 1, "fico_range_low": 725, "revol_util": 48.0}])
-
     y_test = 0
     y_proba_test = 0.12763858
-
     y_pred = app.state.model.predict(X_test)
     y_proba = app.state.model.predict_proba(X_test)[:, 1]
     print(f"y_pred: {y_pred}, y_proba: {y_proba}")
@@ -99,14 +99,18 @@ async def health() -> HealthResponse:
 
 
 @app.get("/info")
-async def info() -> dict:
+async def info() -> InfoResponse:
     """Return loaded model metadata.
 
     TODO — Return at least: api_version, model_name, model_version,
     model_created_at, metrics_holdout.
     """
-    # TODO — Implement (cf. mini-cours 05_Versionning_modele_essentiel.md)
-    raise NotImplementedError("Implement /info endpoint")
+
+    return InfoResponse(api_version=API_VERSION, 
+                        model_name=app.state.metadata.get("model_name", ""), 
+                        model_version=app.state.metadata.get("model_version", ""),
+                        model_created_at=app.state.metadata.get("created_at", ""), 
+                        metrics_holdout=app.state.metadata.get("metrics_test_internal", {}))
 
 
 @app.post("/predict", response_model=Prediction, status_code=status.HTTP_200_OK)
@@ -118,5 +122,15 @@ async def predict(application: LoanApplication, request: Request) -> Prediction:
       2. Call model.predict() and model.predict_proba()
       3. Return Prediction with request_id from request.state
     """
-    # TODO — Implement (cf. mini-cours 01_FastAPI_Pydantic_ml_essentiel.md)
-    raise NotImplementedError("Implement /predict endpoint")
+
+    X_test = pd.DataFrame([LoanApplication.model_dump(application)])
+    
+    y_pred = app.state.model.predict(X_test)
+    y_proba = app.state.model.predict_proba(X_test)[:, 1]
+
+    return Prediction(prediction=int(y_pred[0]), 
+                      probability=float(y_proba[0]), 
+                      model_version=app.state.metadata.get("model_version", ""), 
+                      request_id=request.state.request_id)
+
+

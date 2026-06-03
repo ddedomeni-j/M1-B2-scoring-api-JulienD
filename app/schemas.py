@@ -44,3 +44,10 @@ class Prediction(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+class InfoResponse(BaseModel):
+    api_version: str
+    model_name: str
+    model_version: str
+    model_created_at: str
+    metrics_holdout: dict
