@@ -4,8 +4,12 @@
 # 1. Base image (TODO — choisis la bonne image slim)
 FROM python:3.11-slim
 
+# Installer curl
+RUN apt-get update && apt-get install -y curl \
+    && rm -rf /var/lib/apt/lists/*
+    
 # 2. User non-root (TODO — crée appuser avec uid 1000)
-
+RUN useradd --create-home --shell /bin/bash --uid 1000 appuser
 
 # 3. Working directory
 WORKDIR /home/appuser/app
@@ -19,12 +23,18 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY --chown=appuser:appuser app/ ./app/
 COPY --chown=appuser:appuser models/ ./models/
 
+RUN mkdir -p logs \
+    && chown -R appuser:appuser /home/appuser
+
 # 6. TODO — Passer au user appuser
+USER appuser
 
 # 7. Port exposé (documentaire)
 EXPOSE 8000
 
 # 8. TODO — Healthcheck (cf. mini-cours 02)
-
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail http://localhost:8000/health || exit 1
 
 # 9. TODO — CMD uvicorn (en forme exec, --host 0.0.0.0, port 8000)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
