@@ -4,6 +4,7 @@ Adds X-Request-ID to every response and logs structured JSON to file.
 """
 from __future__ import annotations
 
+from importlib.resources import path
 import time
 import uuid
 
@@ -36,11 +37,19 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             else "ERROR"
         )
 
-        logger.bind(request_id=request_id).log(
+        # Log model version for /predict endpoint, if available in metadata
+        extra = {}
+        if request.url.path == "/predict":
+            model_version = request.app.state.metadata.get("model_version", "unknown")
+            extra["model_version"] = model_version
+
+        # Normalized endpoint
+        endpoint = f"{request.method} {request.url.path}"
+
+        logger.bind(request_id=request_id, **extra).log(
             log_level,
-            "{method} {path} {status} {latency_ms}ms",
-            method=request.method,
-            path=request.url.path,
+            "{endpoint} {status} {latency_ms}ms",
+            endpoint=endpoint,
             status=status_code,
             latency_ms=latency_ms,
         )
