@@ -22,10 +22,18 @@ def valid_payload() -> dict:
     of pyrenex_risk_v2.json. The example below is a placeholder.
     """
     return {
-        "loan_amnt": 10000,
+        "loan_amnt": 7600,
         "term": "36 months",
-        "int_rate": 12.5,
-        "annual_inc": 60000,
+        "int_rate": 11.39,
+        "installment": 250.22,
+        "grade": "B",
+        "emp_length": "3 years",
+         "home_ownership": "MORTGAGE",
+        "annual_inc": 72500,
+        "verification_status": "Verified",
         "purpose": "debt_consolidation",
-        # TODO — Add the remaining fields
+        "dti": 13.12, "delinq_2yrs": 1, 
+        "fico_range_low": 725, 
+        "revol_util": 48.0
     }
+
