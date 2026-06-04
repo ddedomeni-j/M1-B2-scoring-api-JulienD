@@ -1,39 +1,86 @@
 # M1-B2 — Squelette repo (Pyrenex Crédit scoring API)
 
-> **Repo template GitHub.** Clique sur **« Use this template »** en haut à
-> droite de cette page → **Create a new repository** → nomme-le
-> `M1-B2-scoring-api-<prénom>` sur **ton** compte GitHub personnel.
-> C'est ce nouveau repo que tu cloneras pour travailler.
-
 ---
 
-## 🚀 Démarrage (4 commandes)
+## Architecture
+```mermaid
+flowchart LR
+
+    subgraph Flux
+        direction LR
+        Client1[Client] --> |HTTP Request| MW1[Middleware]
+        MW1 --> FastAPI[FastAPI]
+        FastAPI --> MW2[Middleware]
+        MW2 --> |HTTP Response| Client2[Client]
+    end
+
+    MW1 -.-> LogEntree["log entrée <br>request_id, route"]
+    FastAPI -.-> Modele["pyrenex_risk_v2<br>Random Forest"]
+    MW2 -.-> LogSortie["log sortie <br>latence, status, response"]
+
+    style LogEntree fill:none,stroke:none
+    style Modele fill:none,stroke:none
+    style LogSortie fill:none,stroke:none
+
+    style Flux fill:none,stroke:none
+
+```
+## 🚀 Démarrage
 
 ```bash
-# 0. Clone ton repo perso fraîchement créé
-git clone git@github.com:<ton-user>/M1-B2-scoring-api-<prenom>.git
-cd M1-B2-scoring-api-<prenom>
+# 0. Build docker
+docker build -t pyrenex-risk-api:v0.1.0 .  
 
-# 1. Environnement virtuel
-python -m venv .venv && source .venv/bin/activate     # Linux/macOS
-# .venv\Scripts\activate                              # Windows
+# 1. Docker run
+docker run -d -p 8000:8000 --name pyrenex-api pyrenex-risk-api:v0.1.0
 
-# 2. Dépendances
-pip install -r requirements.txt
-
-# 3. Vérification (avec ton modèle M1-B1 dans models/)
-uvicorn app.main:app --reload                          # → /health doit répondre 200
+# 2. Check health stautus ==> Healthy after 10 seconds
+ docker ps -a  
 ```
 
-Ensuite (autre terminal) :
 
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/info
-pytest -v                                              # → 1 test exemple passe
+Requete Postman  :
+
 ```
-
----
+{
+  "info": {
+    "_postman_id": "e5a04596-eba0-44f2-872a-fa0755c2b8d5",
+    "name": "M1-B2",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "15131619"
+  },
+  "item": [
+    {
+      "name": "Predict",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"loan_amnt\": 1000,\r\n  \"int_rate\": 1,\r\n  \"installment\": 50,\r\n  \"annual_inc\": 10000,\r\n  \"dti\": 0.5,\r\n  \"delinq_2yrs\": 5,\r\n  \"fico_range_low\": 10,\r\n  \"revol_util\": 100,\r\n  \"term\": \"string\",\r\n  \"grade\": \"string\",\r\n  \"home_ownership\": \"string\",\r\n  \"verification_status\": \"string\",\r\n  \"purpose\": \"string\",\r\n  \"emp_length\": \"string\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/predict",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "predict"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}
+```
 
 ## 📁 Structure du repo
 
@@ -67,81 +114,3 @@ M1-B2-scoring-api-<prenom>/
 ├── requirements.txt
 └── README.md (ce fichier — à compléter avec schéma Mermaid + démarrage)
 ```
-
----
-
-## 📚 Mini-cours d'appui
-
-Les **5 mini-cours pédagogiques** du brief sont fournis dans
-[`./ressources/`](./ressources/). Lecture juste-à-temps, ~15-20 min chacun :
-
-| Tâche | Mini-cours |
-|---|---|
-| Routes FastAPI + Pydantic ML | [`01_FastAPI_Pydantic_ml_essentiel.md`](./ressources/01_FastAPI_Pydantic_ml_essentiel.md) |
-| Dockerfile Python production | [`02_Dockerfile_Python_essentiel.md`](./ressources/02_Dockerfile_Python_essentiel.md) |
-| Tests pytest + TestClient | [`03_Pytest_TestClient_essentiel.md`](./ressources/03_Pytest_TestClient_essentiel.md) |
-| Loguru middleware structuré | [`04_Loguru_middleware_essentiel.md`](./ressources/04_Loguru_middleware_essentiel.md) |
-| Versionning sémantique modèle | [`05_Versionning_modele_essentiel.md`](./ressources/05_Versionning_modele_essentiel.md) |
-
-Cf. [`./ressources/README.md`](./ressources/README.md) pour l'ordre de mobilisation détaillé.
-
----
-
-## 📥 Modèle (depuis M1-B1)
-
-**Avant tout**, copie ton modèle M1-B1 :
-
-```bash
-cp ../M1-B1-scoring-<prenom>/models/pyrenex_risk_v2.joblib ./models/
-cp ../M1-B1-scoring-<prenom>/models/pyrenex_risk_v2.json   ./models/
-```
-
-Le service ne démarre pas sans ces 2 fichiers.
-
----
-
-## 🧭 Démarche attendue
-
-### Mercredi sync (2 h 15)
-
-1. **Sanity check** : recharger le `.joblib` dans un script séparé (5 min)
-2. **Squelette FastAPI** : `/health`, `/info`, `/predict` (1 h 15)
-3. **Dockerfile minimal** : build + run + curl OK (30 min)
-4. **Tour de table** Discord 11h30 : démo curl + discussion versionning (30 min)
-
-### Async jeudi/vendredi matin (6 h)
-
-5. **Contract test** d'abord (`test_model_contract.py`) puis **tests d'API**
-   (≥ 3) en local **et** dans le container — **volume monté** en priorité
-   (voie rapide), `Dockerfile.test` en option CI/CD (cf. mini-cours 03)
-   (1 h 30)
-6. **Loguru middleware** avec `request_id` + format JSON + rotation logs.
-   ⚠️ **Aucune PII** dans les logs (cf. mini-cours 04) (45 min)
-7. **README complet** + schéma Mermaid + tag `v0.1.0-api` (2 h)
-8. **Finition** + préparation RDV vendredi (1 h 45)
-
-Mini-cours d'appui : voir [`./ressources/`](./ressources/).
-
----
-
-## ✅ Conventions de code
-
-- Python 3.11+
-- Type hints sur toutes les signatures publiques
-- Pas de `print` — utiliser Loguru
-- `pathlib.Path` pour les chemins (pas de `os.path`)
-- Tests pytest **avec fixtures** (pas de boilerplate dupliqué)
-- Loguru en **JSON** (`serialize=True`) sur fichier, coloré en console
-
----
-
-## 🆘 Bloqué·e ?
-
-1. **Swagger** : ouvre `http://localhost:8000/docs` — souvent le plus
-   rapide pour débugger.
-2. **Logs** : lis `logs/api.log` pour repérer les exceptions.
-3. **Tests local d'abord, Docker ensuite** : si `pytest` est rouge en
-   local, inutile de tester Docker — fix le code d'abord.
-4. **`docker logs <container>`** : voir ce que le container raconte au
-   démarrage.
-5. Mini-cours dédiés dans [`./ressources/`](./ressources/).
